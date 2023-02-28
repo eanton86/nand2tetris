@@ -1,0 +1,132 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Memory.jack
+
+/**
+ * This library provides two services: direct access to the computer's main
+ * memory (RAM), and allocation and recycling of memory blocks. The Hack RAM
+ * consists of 32,768 words, each holding a 16-bit binary number.
+ */ 
+class Memory {
+
+    static int freeList;
+
+    /** Initializes the class. */
+    function void init() {
+        var Array mem;
+        let freeList = 0;
+        let mem = 2048;
+        let mem[0] = 14336; // size of first free segment 16383 - 2048 + 1
+        return;
+    }
+
+    /** Returns the RAM value at the given address. */
+    function int peek(int address) {
+        var Array mem;
+        let mem = 2048;
+        return mem[address - 2048];
+    }
+
+    /** Sets the RAM value at the given address to the given value. */
+    function void poke(int address, int value) {
+        var Array mem;
+        let mem = 2048;
+        let mem[address - 2048] = value;
+        return;
+    }
+
+    /** Finds an available RAM block of the given size and returns
+     *  a reference to its base address. */
+    function int alloc(int size) {
+        var Array mem;
+        var int block, segment, prevSegment, nextSegment, segmentSize;
+        let mem = 2048;
+        let segment = freeList;
+        let prevSegment = -1;
+        while (size > mem[segment]) {
+            if (mem[segment + 1] = 0) {  // no more segments
+                do Sys.error(6); // out of memory
+            }
+            let prevSegment = segment;
+            let segment = mem[segment + 1];
+        }
+
+        let segmentSize = mem[segment];
+        let nextSegment = mem[segment + 1];
+        let block = segment;
+        if ((segmentSize - 3) > size) {
+            let mem[block] = size + 1;
+            let segment = block + size + 1;
+            let mem[segment] = segmentSize - size - 1;
+            let mem[segment + 1] = nextSegment;
+        } else {
+            let mem[block] = segmentSize;
+            let segment = nextSegment;
+        }
+        if (prevSegment > -1) {
+            let mem[prevSegment + 1] = segment;
+        } else {
+            let freeList = segment;
+        }
+        return mem + block + 1;
+    }
+
+    /** De-allocates the given object (cast as an array) by making
+     *  it available for future allocations. */
+    function void deAlloc(Array o) {
+        var Array mem;
+        var int size, prevSegment, segment, nextSegment;
+
+        let mem = 2048;
+        let segment = o - 1 - 2048;
+        let size = mem[segment];
+
+        let nextSegment = freeList;
+        while (~(nextSegment = 0) & (segment > nextSegment)) {
+            let prevSegment = nextSegment;
+            let nextSegment = mem[nextSegment + 1];
+        }
+
+        if (nextSegment = freeList) {
+            let nextSegment = freeList;
+            let mem[segment + 1] = nextSegment;
+            let freeList = segment;
+            do Memory.mergeIfNeed(segment, nextSegment);
+        } else {
+            let mem[prevSegment + 1] = segment;
+            let mem[segment + 1] = nextSegment;
+            do Memory.mergeIfNeed(prevSegment, segment);
+            do Memory.mergeIfNeed(segment, nextSegment);
+        }
+        return;
+    }
+
+    function void mergeIfNeed(int segment1, int segment2) {
+        var Array mem;
+        var int size;
+        let mem = 2048;
+
+        if (segment2 = 0) {
+            return;
+        }
+        let size = mem[segment1];
+        if ((segment1 + size) = segment2) {
+            let mem[segment1 + 1] = mem[segment2 + 1];
+            let mem[segment1] = mem[segment1] + mem[segment2];
+            let mem[segment2] = 0;
+            let mem[segment2 + 1] = 0;
+        }
+        return;
+    }
+
+    function void reset(Array arr, int size) {
+        var int j;
+        let j = 0;
+        while (j < size) {
+            let arr[j] = 0;
+            let j = j + 1;
+        }
+        return;
+    }
+}
